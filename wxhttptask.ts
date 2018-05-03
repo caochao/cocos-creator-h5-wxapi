@@ -9,7 +9,7 @@ export enum WxResponseType
     Complete = 3,
 }
 
-interface WxBaseParams
+export interface WxBaseParams
 {
     success?:(resp) => void;
     fail?:(resp) => void;

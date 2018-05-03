@@ -29,12 +29,12 @@ class WxTip
         });
     }
 
-    showToast(title:string, duration?:number)
+    showToast(title:string, duration:number = 1000)
     {
         wx.showToast({
             title,
             icon:"none",
-            duration: duration || 1500,
+            duration: duration,
         });
     }
 }

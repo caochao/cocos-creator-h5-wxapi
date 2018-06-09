@@ -2,8 +2,16 @@ import * as utils from "../util"
 import {TimerMgr} from "../timer/timer_mgr"
 import {wxConsts} from "./wxconsts"
 import {wxSession} from "./wxsession"
-import {WxResponseType, WxTaskType, WxTaskPool, WxTask, 
-    WxUserInfoTask, WxLoginTask, WxRequestTask} from "./wxhttptask"
+import {WxResponseType, WxTaskType, WxTaskPool, WxTask, WxLoginTask, WxRequestTask} from "./wxhttptask"
+
+interface WxUserInfoResp
+{
+    userInfo:any;
+    rawData:string;
+    signature:string;
+    encryptedData:string;
+    iv:string;
+}
 
 interface RequestHandler 
 {
@@ -86,10 +94,6 @@ class WxHttpClient
         {
             return new WxLoginTask(taskType);
         }
-        else if(taskType == WxTaskType.UserInfo)
-        {
-            return new WxUserInfoTask(taskType);
-        }
         else if(taskType == WxTaskType.Request)
         {
             return new WxRequestTask(taskType);
@@ -116,19 +120,19 @@ class WxHttpClient
         this.serverURL = url;
     }
 
-    login(cb?:utils.handler)
+    login(wxUserInfo:WxUserInfoResp)
     {
         //wx.login
         const task:WxTask = this.createTask(WxTaskType.Login);
         task.init(
             {}, 
-            utils.gen_handler(this.handleLoginStep1, this),
-            cb,
+            utils.gen_handler(this.handleWxLogin, this),
+            wxUserInfo,
         );
         task.exec();
     }
 
-    private handleLoginStep1(taskType:WxTaskType, task:WxTask, responseType:WxResponseType, resp, cb?:utils.handler)
+    private handleWxLogin(taskType:WxTaskType, task:WxTask, responseType:WxResponseType, resp, wxUserInfo:WxUserInfoResp)
     {
         this.putToPool(taskType, task);
 
@@ -144,51 +148,32 @@ class WxHttpClient
             return;
         }
         console.log("WxLoginTask success", resp);
-        
-        //wx.login->wx.getUserInfo
-        task = this.createTask(WxTaskType.UserInfo);
-        task.init(
-            {
-                withCredentials:true,
-                lang:"zh_CN",
-            }, 
-            utils.gen_handler(this.handleLoginStep2, this),
-            resp.code,
-            cb,
-        );
-        task.exec();
-    }
 
-    private handleLoginStep2(taskType:WxTaskType, task:WxTask, responseType:WxResponseType, resp, code:string, cb?:utils.handler)
-    {
-        this.putToPool(taskType, task);
-
-        if(responseType === WxResponseType.Fail)
-        {
-            //用户拒绝授权会执行fail回调
-            console.log("WxUserInfoTask fail", resp);
-            return;
-        }
-
-        if(responseType === WxResponseType.Complete)
-        {
-            console.log("WxUserInfoTask complete", resp);
-            return;
-        }
-        console.log("WxUserInfoTask success", resp);
-        
-        //wx.login->wx.getUserInfo->wx.request->应用程序登录
+        //wx.login->wx.request->应用程序登录
         this.request(RequestAction.Login, {
             header:{
-                [wxConsts.WX_HEADER_CODE]:code,
-                [wxConsts.WX_HEADER_ENCRYPTED_DATA]:resp.encryptedData,
-                [wxConsts.WX_HEADER_IV]:resp.iv,
+                [wxConsts.WX_HEADER_CODE]:resp.code,
+                [wxConsts.WX_HEADER_ENCRYPTED_DATA]:wxUserInfo.encryptedData,
+                [wxConsts.WX_HEADER_IV]:wxUserInfo.iv,
             }
-        }, resp.userInfo, cb);
+        }, wxUserInfo.userInfo);
     }
 
-    private _request(action:string, params?:RequestParams, ...reqData)
+    request(action:string, params?:RequestParams, ...reqData)
     {
+        if(!this.serverURL)
+        {
+            console.log("should call setServerURL before");
+            return;
+        }
+
+        //需要登录才能调用其它接口
+        if(action !== RequestAction.Login && !wxSession.get())
+        {
+            //todo 跳转到登录页
+            return;
+        }
+
         const task:WxTask = this.createTask(WxTaskType.Request);
         task.init(
             {
@@ -218,23 +203,6 @@ class WxHttpClient
             task.exec();
             this.session++;
         // }
-    }
-
-    request(action:string, params?:RequestParams, ...reqData)
-    {
-        if(!this.serverURL)
-        {
-            console.log("should call setServerURL before");
-            return;
-        }
-
-        //需要登录才能调用其它接口
-        if(action !== RequestAction.Login && !wxSession.get())
-        {
-            this.login(utils.gen_handler(this._request, this, action, params, ...reqData));
-            return;
-        }
-        this._request(action, params, ...reqData);
     }
 
     private handleResponse(taskType:WxTaskType, task:WxTask, responseType:WxResponseType, resp, action:string, ...reqData)
@@ -358,11 +326,11 @@ class WxHttpClient
     private defaultErrorHandler(code:ResponseCode, errmsg:string)
     {
         console.log(`请求响应失败, code=${code}`, errmsg);
-        //需要重新登录
+        //需要重新登录, 跳到登录页
         if(code == ResponseCode.ECodeNotLogin)
         {
             wxSession.clear();
-            this.login();
+            //todo 跳到登录页
         }
     }
 }

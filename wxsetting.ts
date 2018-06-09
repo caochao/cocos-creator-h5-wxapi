@@ -25,6 +25,9 @@ const wxScopeName = {
     [WxScope.Camera]:"摄像头",
 }
 
+/** wx.openSetting 已废弃
+    wx.authorize({scope: "scope.userInfo"}) 已废弃 
+*/
 class WxSetting
 {
     /**

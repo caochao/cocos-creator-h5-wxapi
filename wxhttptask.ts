@@ -21,6 +21,13 @@ interface WxLoginParams extends WxBaseParams
     timeout?:number;
 }
 
+interface WxUserInfoParams extends WxBaseParams 
+{
+    withCredentials?:boolean;
+    lang?:string;
+    timeout?:number;
+}
+
 interface WxRequestParams extends WxBaseParams 
 {
     url:string;
@@ -31,7 +38,7 @@ interface WxRequestParams extends WxBaseParams
     responseType?:string;
 }
 
-export type WxTaskParams = WxLoginParams|WxRequestParams;
+export type WxTaskParams = WxLoginParams|WxRequestParams|WxUserInfoParams;
 
 export class WxTaskPool
 {
@@ -75,6 +82,7 @@ export class WxTaskPool
 export enum WxTaskType
 {
     Login = "Loin",
+    UserInfo = "UserInfo",
     Request = "Request",
 }
 
@@ -119,6 +127,15 @@ export class WxLoginTask extends WxTask
     {
         super.exec();
         wx.login(this.params);
+    }
+}
+
+export class WxUserInfoTask extends WxTask
+{
+    exec()
+    {
+        super.exec();
+        wx.getUserInfo(this.params);
     }
 }
 

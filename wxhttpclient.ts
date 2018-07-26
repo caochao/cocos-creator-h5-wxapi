@@ -1,17 +1,9 @@
 import * as utils from "../util"
-import {TimerMgr} from "../timer/timer_mgr"
 import {wxConsts} from "./wxconsts"
 import {wxSession} from "./wxsession"
-import {WxResponseType, WxTaskType, WxTaskPool, WxTask, WxLoginTask, WxRequestTask} from "./wxhttptask"
-
-interface WxUserInfoResp
-{
-    userInfo:any;
-    rawData:string;
-    signature:string;
-    encryptedData:string;
-    iv:string;
-}
+import {WxResponseType, WxTaskType, WxTaskPool, WxTask, WxLoginTask, WxUserInfoTask, WxRequestTask} from "./wxhttptask"
+import { pop_mgr } from "../ui/pop_mgr"
+import { wxTip } from "./wxtips"
 
 interface RequestHandler 
 {
@@ -94,6 +86,10 @@ class WxHttpClient
         {
             return new WxLoginTask(taskType);
         }
+        else if(taskType == WxTaskType.UserInfo)
+        {
+            return new WxUserInfoTask(taskType);
+        }
         else if(taskType == WxTaskType.Request)
         {
             return new WxRequestTask(taskType);
@@ -120,19 +116,18 @@ class WxHttpClient
         this.serverURL = url;
     }
 
-    login(wxUserInfo:WxUserInfoResp)
+    login()
     {
         //wx.login
         const task:WxTask = this.createTask(WxTaskType.Login);
         task.init(
             {}, 
             utils.gen_handler(this.handleWxLogin, this),
-            wxUserInfo,
         );
         task.exec();
     }
 
-    private handleWxLogin(taskType:WxTaskType, task:WxTask, responseType:WxResponseType, resp, wxUserInfo:WxUserInfoResp)
+    private handleWxLogin(taskType:WxTaskType, task:WxTask, responseType:WxResponseType, resp)
     {
         this.putToPool(taskType, task);
 
@@ -149,14 +144,44 @@ class WxHttpClient
         }
         console.log("WxLoginTask success", resp);
 
-        //wx.login->wx.request->应用程序登录
+        //wx.login->wx.getUserInfo
+        task = this.createTask(WxTaskType.UserInfo);
+        task.init(
+            {
+                withCredentials:true,
+                lang:"zh_CN",
+            }, 
+            utils.gen_handler(this.handleWxGetUserInfo, this),
+            resp.code,
+        );
+        task.exec();
+    }
+
+    private handleWxGetUserInfo(taskType:WxTaskType, task:WxTask, responseType:WxResponseType, resp, code:string)
+    {
+        this.putToPool(taskType, task);
+
+        if(responseType === WxResponseType.Fail)
+        {
+            console.log("WxUserInfoTask fail", resp);
+            return;
+        }
+
+        if(responseType === WxResponseType.Complete)
+        {
+            console.log("WxUserInfoTask complete", resp);
+            return;
+        }
+        console.log("WxUserInfoTask success", resp);
+ 		        
+        //wx.login->wx.getUserInfo->wx.request->应用程序登录
         this.request(RequestAction.Login, {
             header:{
-                [wxConsts.WX_HEADER_CODE]:resp.code,
-                [wxConsts.WX_HEADER_ENCRYPTED_DATA]:wxUserInfo.encryptedData,
-                [wxConsts.WX_HEADER_IV]:wxUserInfo.iv,
+                [wxConsts.WX_HEADER_CODE]:code,
+                [wxConsts.WX_HEADER_ENCRYPTED_DATA]:resp.encryptedData,
+                [wxConsts.WX_HEADER_IV]:resp.iv,
             }
-        }, wxUserInfo.userInfo);
+        }, resp.userInfo);
     }
 
     request(action:string, params?:RequestParams, ...reqData)
@@ -330,7 +355,9 @@ class WxHttpClient
         if(code == ResponseCode.ECodeNotLogin)
         {
             wxSession.clear();
-            //todo 跳到登录页
+            //跳到登录页
+            wxTip.showToast("本次会话过期，请重新登录");
+            pop_mgr.get_inst().clear();
         }
     }
 }

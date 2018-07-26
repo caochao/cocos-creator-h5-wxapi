@@ -39,6 +39,58 @@ class WxFunc
     {
         return wx.getSystemInfoSync();
     }
+
+    /**
+     * 本机sdk版本与目标sdk版本比较
+     * 小于返回-1，大于返回1，相等返回0
+     */
+    compareSDKVersion(targetVersion:string)
+    {
+        return this.compareVersion(this.wxGetSystemInfo().SDKVersion, targetVersion);
+    }
+
+    /**
+     * 本机微信版本与目标微信版本比较
+     * 小于返回-1，大于返回1，相等返回0
+     */
+    compareWechatVersion(targetVersion:string)
+    {
+        return this.compareVersion(this.wxGetSystemInfo().version, targetVersion);
+    }
+
+    /**
+     * v1小于v2返回-1，v1大于v2返回1，相同返回0
+     */
+    compareVersion(_v1:string, _v2:string) 
+    {
+        const v1 = _v1.split('.');
+        const v2 = _v2.split('.');
+        const len = Math.max(v1.length, v2.length);
+      
+        while (v1.length < len) 
+        {
+            v1.push('0');
+        }
+        while (v2.length < len) 
+        {
+            v2.push('0');
+        }
+        for (let i = 0; i < len; i++) 
+        {
+            const num1 = parseInt(v1[i]);
+            const num2 = parseInt(v2[i]);
+      
+            if (num1 > num2) 
+            {
+                return 1;
+            } 
+            else if (num1 < num2) 
+            {
+                return -1;
+            }
+        }
+        return 0;
+    }
 }
 
 export const wxFunc = new WxFunc();

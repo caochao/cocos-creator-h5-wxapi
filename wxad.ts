@@ -7,6 +7,9 @@ export interface WxBannerAd
     onError:(cb:(err:any) => void) => void;
     onLoad:(cb:() => void) => void;
     onResize:(cb:(res) => void) => void;
+    offError:(cb?:(err:any) => void) => void;
+    offLoad:(cb?:() => void) => void;
+    offResize:(cb?:(res) => void) => void;
     show:() => Promise<any>;
     hide:() => void;
     destroy:() => void;

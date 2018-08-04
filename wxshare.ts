@@ -73,6 +73,21 @@ class WxShare
             }
         });
     }
+
+    getShareInfo(shareTicket:string, successCb?:utils.handler, failCb?:utils.handler)
+    {
+        wx.getShareInfo({
+            shareTicket,
+            success: res => {
+                console.log("getShareInfo succ", res);
+                successCb && successCb.exec(res.encryptedData, res.iv);
+            },
+            fail: res => {
+                console.log("getShareInfo fail", res);
+                failCb && failCb.exec();
+            },
+        });
+    }
 }
 
 export const wxShare = new WxShare();

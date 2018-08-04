@@ -44,6 +44,7 @@ export const RequestAction = {
    Hint:"hint",
    Friend:"friend",
    Rank:"rank",
+   GetGift:"getgift",
 };
 
 const enum ResponseCode{
@@ -52,7 +53,8 @@ const enum ResponseCode{
 	ECodeServerError   = 2,  // 服务器内部数据错误
 	ECodeNotLogin      = 10, // 未登录
 	ECodeWrongParam    = 11, // 错误的参数
-	ECodeNoEnoughMoney = 12, // 钱不够
+    ECodeNoEnoughMoney = 12, // 钱不够
+    ECodeShareSameGroup = 13,   //分享到相同的群
 }
 
 class WxHttpClient
@@ -358,6 +360,10 @@ class WxHttpClient
             //跳到登录页
             wxTip.showToast("本次会话过期，请重新登录");
             pop_mgr.get_inst().clear();
+        }
+        else if(code == ResponseCode.ECodeShareSameGroup)
+        {
+            wxTip.showToast("试试分享到不同的群吧");
         }
     }
 }
